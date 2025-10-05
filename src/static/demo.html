@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Swap AI - Live Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .demo-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .product-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .product-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        
+        .product-item.selected {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        
+        .product-item.unavailable {
+            border-left-color: #dc3545;
+            opacity: 0.8;
+        }
+        
+        .product-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .product-details {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+        
+        .badge.available {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge.unavailable {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 10px 5px 10px 0;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .suggestion-item {
+            background: #fff3cd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #ffc107, #dc3545);
+            transition: width 0.5s;
+        }
+        
+        .swap-result {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+            margin: 15px 0;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #dc3545;
+            margin: 15px 0;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔄 Smart Swap AI - Live Demo</h1>
+            <p>Interactive Product Swap Demonstration</p>
+        </div>
+        
+        <div class="demo-layout">
+            <div class="card">
+                <h2>Step 1: Select a Product</h2>
+                <div id="productList" class="loading">Loading products...</div>
+                <button id="manualSwapBtn" class="btn" style="background: #17a2b8; display: none; margin-top: 15px;" onclick="executeManualSwap()">
+                    ⚡ Execute Manual Swap
+                </button>
+            </div>
+            
+            <div class="card">
+                <h2>Step 2: Get AI Swap Suggestions</h2>
+                <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">Select only out-of-stock product to get AI suggestions</p>
+                <button id="getSuggestionsBtn" class="btn" disabled>Get AI Suggestions</button>
+                <button id="resetBtn" class="btn" style="background: #6c757d; display: none;" onclick="resetDemo()">🔄 Start New Swap</button>
+                
+                <div id="confidenceFilterContainer" style="display: none; margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 2px solid #667eea;">
+                    <label style="display: block; font-weight: bold; margin-bottom: 12px; color: #667eea;">
+                        🎯 Filter by Confidence Score:
+                    </label>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 6px; background: white;">
+                            <input type="checkbox" id="filterHigh" value="high" onchange="filterSuggestionsByConfidence()" 
+                                   style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;">
+                            <span style="font-size: 0.95em;">High Confidence (30%+)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 6px; background: white;">
+                            <input type="checkbox" id="filterMedium" value="medium" onchange="filterSuggestionsByConfidence()" 
+                                   style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;">
+                            <span style="font-size: 0.95em;">Medium Confidence (10-29%)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer; padding: 8px; border-radius: 6px; background: white;">
+                            <input type="checkbox" id="filterLow" value="low" onchange="filterSuggestionsByConfidence()" 
+                                   style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;">
+                            <span style="font-size: 0.95em;">Low Confidence (0-9%)</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div id="suggestionsList"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Step 3: Execute Swap & View Results</h2>
+            <div id="swapResults" class="empty-state">
+                Select a product and get suggestions to execute a swap
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedProduct = null;
+        let selectedAvailableProduct = null;
+        let suggestions = [];
+        let allSuggestions = [];
+        let products = [];
+
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                products = await response.json();
+                
+                const productList = document.getElementById('productList');
+                if (products.length === 0) {
+                    productList.innerHTML = '<div class="empty-state">No products available. Add some products first!</div>';
+                    return;
+                }
+                
+                const availableProducts = products.filter(p => p.availability);
+                const unavailableProducts = products.filter(p => !p.availability);
+                
+                let html = '';
+                
+                if (unavailableProducts.length > 0) {
+                    html += `
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; color: #dc3545; font-weight: bold; margin-bottom: 8px;">
+                                ⚠️ Out of Stock Products (Select to find swap)
+                            </label>
+                            <select id="unavailableSelect" onchange="selectFromDropdown(this.value)" 
+                                    style="width: 100%; padding: 12px; border: 2px solid #dc3545; border-radius: 8px; font-size: 1em; background: white; cursor: pointer;">
+                                <option value="">-- Select an out-of-stock product --</option>
+                                ${unavailableProducts.map(p => `
+                                    <option value="${p.id}">${p.name} (${p.sku}) - $${p.price}</option>
+                                `).join('')}
+                            </select>
+                        </div>
+                    `;
+                }
+                
+                if (availableProducts.length > 0) {
+                    html += `
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; color: #28a745; font-weight: bold; margin-bottom: 8px;">
+                                ✅ Available Products (For reference)
+                            </label>
+                            <select id="availableSelect" onchange="selectFromDropdown(this.value)"
+                                    style="width: 100%; padding: 12px; border: 2px solid #28a745; border-radius: 8px; font-size: 1em; background: white; cursor: pointer;">
+                                <option value="">-- Select an available product --</option>
+                                ${availableProducts.map(p => `
+                                    <option value="${p.id}">${p.name} (${p.sku}) - $${p.price}</option>
+                                `).join('')}
+                            </select>
+                        </div>
+                    `;
+                }
+                
+                productList.innerHTML = html;
+            } catch (error) {
+                document.getElementById('productList').innerHTML = 
+                    '<div class="error">Error loading products: ' + error.message + '</div>';
+            }
+        }
+
+        function selectFromDropdown(productId) {
+            const product = products.find(p => p.id === parseInt(productId));
+            const unavailableSelect = document.getElementById('unavailableSelect');
+            const availableSelect = document.getElementById('availableSelect');
+            
+            if (!productId) {
+                // Reset based on which dropdown was cleared
+                if (event && event.target.id === 'unavailableSelect') {
+                    selectedProduct = null;
+                } else if (event && event.target.id === 'availableSelect') {
+                    selectedAvailableProduct = null;
+                }
+                updateButtons();
+                return;
+            }
+            
+            // Assign to correct variable based on availability
+            if (!product.availability) {
+                selectedProduct = product;
+            } else {
+                selectedAvailableProduct = product;
+            }
+            
+            updateButtons();
+            document.getElementById('suggestionsList').innerHTML = '';
+            document.getElementById('swapResults').innerHTML = '<div class="empty-state">Select products and choose swap method</div>';
+        }
+        
+        function updateButtons() {
+            const getSuggestionsBtn = document.getElementById('getSuggestionsBtn');
+            const manualSwapBtn = document.getElementById('manualSwapBtn');
+            
+            // Show manual swap button only if both products are selected
+            if (selectedProduct && selectedAvailableProduct) {
+                manualSwapBtn.style.display = 'inline-block';
+                getSuggestionsBtn.disabled = true;
+                getSuggestionsBtn.style.opacity = '0.5';
+            } else if (selectedProduct) {
+                // Only out-of-stock selected, show get suggestions
+                manualSwapBtn.style.display = 'none';
+                getSuggestionsBtn.disabled = false;
+                getSuggestionsBtn.style.opacity = '1';
+            } else {
+                // Nothing selected
+                manualSwapBtn.style.display = 'none';
+                getSuggestionsBtn.disabled = true;
+                getSuggestionsBtn.style.opacity = '1';
+            }
+        }
+
+        async function getSuggestions() {
+            const btn = document.getElementById('getSuggestionsBtn');
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+            
+            const suggestionsList = document.getElementById('suggestionsList');
+            suggestionsList.innerHTML = '<div class="loading">Analyzing and finding best swaps...</div>';
+            
+            try {
+                const response = await fetch('/api/suggestions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        product_id: selectedProduct.id,
+                        context: 'Customer needs alternative product'
+                    })
+                });
+                
+                const data = await response.json();
+                allSuggestions = data.suggestions || [];
+                suggestions = allSuggestions;
+                
+                if (suggestions.length === 0) {
+                    suggestionsList.innerHTML = '<div class="empty-state">No swap suggestions found. Try creating a swap rule first!</div>';
+                    document.getElementById('confidenceFilterContainer').style.display = 'none';
+                } else {
+                    document.getElementById('confidenceFilterContainer').style.display = 'block';
+                    // Uncheck all filters on initial load
+                    document.getElementById('filterHigh').checked = false;
+                    document.getElementById('filterMedium').checked = false;
+                    document.getElementById('filterLow').checked = false;
+                    displaySuggestions();
+                }
+            } catch (error) {
+                suggestionsList.innerHTML = '<div class="error">Error: ' + error.message + '</div>';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Get Suggestions';
+            }
+        }
+
+        function displaySuggestions() {
+            const suggestionsList = document.getElementById('suggestionsList');
+            
+            if (suggestions.length === 0) {
+                suggestionsList.innerHTML = '<div class="empty-state">No suggestions match the selected confidence range.</div>';
+                return;
+            }
+            
+            suggestionsList.innerHTML = suggestions.map((s, idx) => {
+                        // Determine AI type badge
+                        let typeBadge = '';
+                        let typeColor = '';
+                        let typeIcon = '';
+                        
+                        if (s.type === 'deterministic') {
+                            typeBadge = 'Rule-Based';
+                            typeColor = '#007bff';
+                            typeIcon = '📋';
+                        } else if (s.type === 'embedding_based') {
+                            typeBadge = 'AI Semantic';
+                            typeColor = '#9b59b6';
+                            typeIcon = '🧠';
+                        } else if (s.type === 'llm_suggested') {
+                            typeBadge = 'AI LLM';
+                            typeColor = '#e74c3c';
+                            typeIcon = '🤖';
+                        }
+                        
+                        return `
+                        <div class="suggestion-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div class="product-name">${s.swap_candidate.name}</div>
+                                <span style="background: ${typeColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold;">
+                                    ${typeIcon} ${typeBadge}
+                                </span>
+                            </div>
+                            <div class="product-details">SKU: ${s.swap_candidate.sku} | Price: $${s.swap_candidate.price}</div>
+                            <div style="margin: 10px 0;">
+                                <strong>Reasoning:</strong> ${s.reasoning}
+                            </div>
+                            <div>
+                                <strong>Confidence:</strong> ${(s.confidence * 100).toFixed(0)}%
+                                <div class="confidence-bar">
+                                    <div class="confidence-fill" style="width: ${s.confidence * 100}%"></div>
+                                </div>
+                            </div>
+                            <button class="btn" onclick="executeSwap(${idx})">Execute This Swap</button>
+                        </div>
+                        `;
+                    }).join('');
+        }
+
+        function filterSuggestionsByConfidence() {
+            const highChecked = document.getElementById('filterHigh').checked;
+            const mediumChecked = document.getElementById('filterMedium').checked;
+            const lowChecked = document.getElementById('filterLow').checked;
+            
+            // If none selected, show all
+            if (!highChecked && !mediumChecked && !lowChecked) {
+                suggestions = allSuggestions;
+            } else {
+                suggestions = allSuggestions.filter(s => {
+                    const confidence = s.confidence;
+                    if (highChecked && confidence >= 0.30) return true;
+                    if (mediumChecked && confidence >= 0.10 && confidence < 0.30) return true;
+                    if (lowChecked && confidence < 0.10) return true;
+                    return false;
+                });
+            }
+            
+            displaySuggestions();
+        }
+
+        async function executeSwap(suggestionIndex) {
+            const suggestion = suggestions[suggestionIndex];
+            const swapResults = document.getElementById('swapResults');
+            
+            swapResults.innerHTML = '<div class="loading">Executing swap and recording in database...</div>';
+            
+            try {
+                // Get the first available rule (needed for API)
+                const rulesResponse = await fetch('/api/rules');
+                const rules = await rulesResponse.json();
+                
+                if (rules.length === 0) {
+                    swapResults.innerHTML = '<div class="error">No swap rules found. Please create a rule first.</div>';
+                    return;
+                }
+                
+                // Execute swap via API to record it in database
+                const response = await fetch('/api/swaps/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        rule_id: rules[0].id,  // Use first available rule
+                        original_product_id: selectedProduct.id,
+                        swap_product_id: suggestion.swap_candidate.id
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to execute swap');
+                
+                const execution = await response.json();
+                
+                swapResults.innerHTML = `
+                    <div class="swap-result">
+                        <h3>✅ Swap Successfully Executed & Recorded!</h3>
+                        <div style="margin: 15px 0;">
+                            <strong>Original Product:</strong> ${selectedProduct.name} (${selectedProduct.sku})<br>
+                            <strong>Swapped To:</strong> ${suggestion.swap_candidate.name} (${suggestion.swap_candidate.sku})<br>
+                            <strong>Confidence Score:</strong> ${(suggestion.confidence * 100).toFixed(0)}%<br>
+                            <strong>Type:</strong> ${suggestion.type || 'rule-based'}<br>
+                            <strong>Reasoning:</strong> ${suggestion.reasoning}<br>
+                            <strong>Execution ID:</strong> ${execution.id}
+                        </div>
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #28a745;">
+                            <strong>Next Steps:</strong>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li>Swap recorded in database for learning</li>
+                                <li>Future swaps of this pair will have higher confidence</li>
+                                <li>Notify customer about the swap</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                swapResults.innerHTML = '<div class="error">Error executing swap: ' + error.message + '</div>';
+            }
+            
+            document.getElementById('resetBtn').style.display = 'inline-block';
+        }
+
+        async function executeManualSwap() {
+            if (!selectedProduct || !selectedAvailableProduct) return;
+            
+            const swapResults = document.getElementById('swapResults');
+            swapResults.innerHTML = '<div class="loading">Executing manual swap and recording...</div>';
+            
+            try {
+                // Get the first available rule (needed for API)
+                const rulesResponse = await fetch('/api/rules');
+                const rules = await rulesResponse.json();
+                
+                if (rules.length === 0) {
+                    swapResults.innerHTML = '<div class="error">No swap rules found. Please create a rule first.</div>';
+                    return;
+                }
+                
+                // Execute swap via API to record it in database
+                const response = await fetch('/api/swaps/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        rule_id: rules[0].id,
+                        original_product_id: selectedProduct.id,
+                        swap_product_id: selectedAvailableProduct.id
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to execute manual swap');
+                
+                const execution = await response.json();
+                
+                swapResults.innerHTML = `
+                    <div class="swap-result">
+                        <h3>✅ Manual Swap Successfully Executed & Recorded!</h3>
+                        <div style="margin: 15px 0;">
+                            <strong>Original Product:</strong> ${selectedProduct.name} (${selectedProduct.sku})<br>
+                            <strong>Swapped To:</strong> ${selectedAvailableProduct.name} (${selectedAvailableProduct.sku})<br>
+                            <strong>Confidence Score:</strong> 100% (Manual Selection)<br>
+                            <strong>Type:</strong> Manual Swap<br>
+                            <strong>Reasoning:</strong> Direct manual selection by user<br>
+                            <strong>Execution ID:</strong> ${execution.id}
+                        </div>
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #28a745;">
+                            <strong>Next Steps:</strong>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li>Swap recorded in database for learning</li>
+                                <li>Future swaps of this pair will have higher confidence</li>
+                                <li>Notify customer about the swap</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                swapResults.innerHTML = '<div class="error">Error executing manual swap: ' + error.message + '</div>';
+            }
+            
+            document.getElementById('resetBtn').style.display = 'inline-block';
+        }
+        
+        function resetDemo() {
+            selectedProduct = null;
+            selectedAvailableProduct = null;
+            suggestions = [];
+            allSuggestions = [];
+            
+            // Clear dropdowns
+            const unavailableSelect = document.getElementById('unavailableSelect');
+            const availableSelect = document.getElementById('availableSelect');
+            if (unavailableSelect) unavailableSelect.value = '';
+            if (availableSelect) availableSelect.value = '';
+            
+            document.getElementById('getSuggestionsBtn').disabled = true;
+            document.getElementById('manualSwapBtn').style.display = 'none';
+            document.getElementById('suggestionsList').innerHTML = '';
+            document.getElementById('swapResults').innerHTML = '<div class="empty-state">Select a product and get suggestions to execute a swap</div>';
+            document.getElementById('resetBtn').style.display = 'none';
+            document.getElementById('confidenceFilterContainer').style.display = 'none';
+        }
+
+        document.getElementById('getSuggestionsBtn').addEventListener('click', getSuggestions);
+        
+        loadProducts();
+    </script>
+</body>
+</html>
